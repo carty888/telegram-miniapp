@@ -1,57 +1,42 @@
 import { NextResponse } from "next/server";
 
-type DropItem = {
-  name: string;
-  rarity: string;
-  emoji: string;
-  chance: number;
-};
-
-const ITEMS: DropItem[] = [
-  { name: "Plush Bear Gift", rarity: "Common", emoji: "🧸", chance: 55 },
-  { name: "Rose Gift", rarity: "Rare", emoji: "🌹", chance: 25 },
-  { name: "Rocket Gift", rarity: "Epic", emoji: "🚀", chance: 15 },
-  { name: "Diamond Gift", rarity: "Legendary", emoji: "💎", chance: 5 },
-];
-
-function pickItem() {
-  const roll = Math.random() * 100;
-  let sum = 0;
-
-  for (const item of ITEMS) {
-    sum += item.chance;
-
-    if (roll <= sum) {
-      return item;
-    }
-  }
-
-  return ITEMS[0];
-}
-
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const body = await req.json();
-
-    if (!body.paymentPayload) {
-      return NextResponse.json({
-        ok: false,
-        error: "Нет paymentPayload",
-      });
+    const botToken = process.env.BOT_TOKEN;
+    if (!botToken) {
+      return NextResponse.json({ error: "BOT_TOKEN is not defined" }, { status: 500 });
     }
 
-    const item = pickItem();
+    // Генерируем уникальный payload (можно добавить userId, если передаёте)
+    const payload = `case_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-    return NextResponse.json({
-      ok: true,
-      item,
-    });
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/createInvoice`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Premium Gift Case",
+          description: "Открытие премиум кейса",
+          payload: payload,
+          provider_token: "",          // пустая строка для Stars
+          currency: "XTR",             // валюта Telegram Stars
+          prices: [{ label: "Premium Case", amount: 1 }], // 1 Star
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      console.error("Telegram API error:", data);
+      return NextResponse.json({ error: data.description || "Failed to create invoice" }, { status: 400 });
+    }
+
+    // Возвращаем ссылку на инвойс
+    return NextResponse.json({ invoiceLink: data.result.invoice_link });
   } catch (error) {
     console.error(error);
-
-    return NextResponse.json({
-      ok: false,
-      error: "Server error",
-    });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
