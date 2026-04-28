@@ -1,211 +1,94 @@
-"use client";
+'use client'
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from 'react'
 
-type TelegramWebApp = {
-  expand: () => void;
-  openInvoice: (
-    url: string,
-    callback: (status: "paid" | "cancelled" | "failed" | "pending") => void
-  ) => void;
-};
+const ITEMS = ['🎁', '💎', '🔥', '⭐', '🎉', '💰']
 
-type InvoiceResponse = {
-  invoiceLink?: string;
-  error?: string;
-};
+export default function Page() {
+  const [result, setResult] = useState<string | null>(null)
 
-type OpenCaseResponse = {
-  item: string;
-};
-
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: TelegramWebApp;
-    };
-  }
-}
-
-const CASES = [
-  { id: "free", title: "Бесплатный кейс", price: 0 },
-  { id: "one", title: "Кейс за 1 ⭐", price: 1 },
-  { id: "ten", title: "Кейс за 10 ⭐", price: 10 },
-];
-
-const ROULETTE_ITEMS = [
-  "🎁",
-  "💎",
-  "🔥",
-  "⭐",
-  "🎉",
-  "💰",
-  "🎁",
-  "⭐",
-  "🔥",
-  "💎",
-  "🎉",
-  "💰",
-  "⭐",
-  "🎁",
-  "🔥",
-  "💎",
-  "🎉",
-  "⭐",
-  "💰",
-  "🎁",
-];
-
-export default function Home() {
-  const tgRef = useRef<TelegramWebApp | null>(null);
-
-  const [selectedCase, setSelectedCase] = useState(CASES[0]);
-  const [loading, setLoading] = useState(false);
-  const [rolling, setRolling] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-
-  useEffect(() => {
-    const webapp = window.Telegram?.WebApp;
-
-    if (!webapp) {
-      return;
-    }
-
-    webapp.expand();
-    tgRef.current = webapp;
-  }, []);
-
-  async function openFreeCase() {
-    setRolling(true);
-
-    const res = await fetch("/api/open-case", {
-      method: "POST",
-    });
-
-    const data = (await res.json()) as OpenCaseResponse;
-
-    window.setTimeout(() => {
-      setRolling(false);
-      setResult(data.item);
-      setLoading(false);
-    }, 2200);
-  }
-
-  async function openPaidCase() {
-    const res = await fetch("/api/create-invoice", {
-      method: "POST",
-      body: JSON.stringify({
-        price: selectedCase.price,
-        title: selectedCase.title,
-      }),
-    });
-
-    const invoice = (await res.json()) as InvoiceResponse;
-
-    if (!invoice.invoiceLink) {
-      throw new Error(invoice.error || "Invoice link not found");
-    }
-
-    const tg = tgRef.current;
-
-    if (!tg) {
-      throw new Error("Telegram WebApp is not available");
-    }
-
-    tg.openInvoice(invoice.invoiceLink, (status) => {
-      if (status !== "paid") {
-        setLoading(false);
-        return;
-      }
-
-      void openFreeCase();
-    });
-  }
-
-  async function openCase() {
-    setLoading(true);
-    setResult(null);
-
-    try {
-      if (selectedCase.price === 0) {
-        await openFreeCase();
-        return;
-      }
-
-      await openPaidCase();
-    } catch (error) {
-      console.error(error);
-      alert("Ошибка");
-      setRolling(false);
-      setLoading(false);
-    }
+  const openCase = () => {
+    const random = ITEMS[Math.floor(Math.random() * ITEMS.length)]
+    setResult(random)
   }
 
   return (
-    <main className="min-h-screen bg-[#071018] text-white p-4">
-      <div className="max-w-md mx-auto space-y-5">
-        <h1 className="text-3xl font-bold">Кейсы</h1>
+    <div className="min-h-screen bg-[#060f1a] text-white px-4 py-6">
 
-        <p className="text-zinc-400">Открывай кейсы и получай предметы</p>
+      {/* HEADER */}
+      <div className="mb-6">
+        <div className="text-sm text-purple-400 mb-1">Telegram Mini App</div>
+        <h1 className="text-4xl font-bold flex items-center gap-2">
+          Кейсы 📦
+        </h1>
 
-        <div className="space-y-2">
-          {CASES.map((caseItem) => (
-            <button
-              type="button"
-              key={caseItem.id}
-              onClick={() => setSelectedCase(caseItem)}
-              className={`w-full p-4 rounded-xl border text-left cursor-pointer ${
-                selectedCase.id === caseItem.id
-                  ? "border-yellow-400 bg-white/10"
-                  : "border-white/10"
-              }`}
-            >
-              <div className="flex justify-between">
-                <span>{caseItem.title}</span>
-                <span>
-                  {caseItem.price === 0 ? "FREE" : `${caseItem.price}⭐`}
-                </span>
-              </div>
-            </button>
-          ))}
+        <div className="mt-4 bg-[#0d1b2a] p-4 rounded-xl text-gray-300">
+          Открывай кейсы и получай крутые предметы! <br />
+          Чем дороже кейс — тем круче дроп ✨
         </div>
+      </div>
 
-        <div className="overflow-hidden rounded-xl bg-black p-4">
-          <div
-            className={`flex gap-3 ${
-              rolling
-                ? "animate-[rouletteMove_2.2s_cubic-bezier(0.15,0.85,0.25,1)_forwards]"
-                : ""
-            }`}
-          >
-            {ROULETTE_ITEMS.map((item, index) => (
-              <div
-                key={`${item}-${index}`}
-                className="w-16 h-16 flex items-center justify-center bg-white/10 rounded-lg text-xl shrink-0"
-              >
-                {item}
-              </div>
-            ))}
+      {/* FREE CASE */}
+      <div
+        onClick={openCase}
+        className="mb-4 cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-green-700 to-green-500 flex items-center justify-between"
+      >
+        <div className="flex items-center gap-4">
+          
+          {/* 🔥 ТВОЯ ГИФКА */}
+          <img
+            src="/case.gif"
+            alt="case"
+            className="w-20 h-20 rounded-xl object-cover"
+          />
+
+          <div>
+            <div className="text-xl font-semibold">Бесплатный кейс</div>
+            <div className="text-sm opacity-80">Открывается бесплатно</div>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={openCase}
-          disabled={loading}
-          className="w-full h-12 rounded-xl bg-white text-black font-bold disabled:opacity-60"
-        >
-          {loading
-            ? "Загрузка..."
-            : selectedCase.price === 0
-              ? "Открыть бесплатно"
-              : `Купить и открыть за ${selectedCase.price} ⭐`}
-        </button>
-
-        {result ? (
-          <div className="text-center text-2xl mt-4">Выпало: {result}</div>
-        ) : null}
+        <div className="text-green-200 font-bold">БЕСПЛАТНО</div>
       </div>
-    </main>
-  );
+
+      {/* CASE 1 */}
+      <div className="mb-4 rounded-2xl p-4 bg-gradient-to-r from-yellow-700 to-yellow-500 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 bg-black/30 rounded-xl flex items-center justify-center text-3xl">
+            ⭐
+          </div>
+
+          <div>
+            <div className="text-xl font-semibold">Кейс за 1 звезду</div>
+            <div className="text-sm opacity-80">Отличные предметы</div>
+          </div>
+        </div>
+
+        <div className="text-yellow-200 font-bold">⭐ 1</div>
+      </div>
+
+      {/* CASE 10 */}
+      <div className="mb-4 rounded-2xl p-4 bg-gradient-to-r from-purple-700 to-purple-500 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 bg-black/30 rounded-xl flex items-center justify-center text-3xl">
+            💎
+          </div>
+
+          <div>
+            <div className="text-xl font-semibold">Кейс за 10 звезд</div>
+            <div className="text-sm opacity-80">Лучшие предметы</div>
+          </div>
+        </div>
+
+        <div className="text-purple-200 font-bold">⭐ 10</div>
+      </div>
+
+      {/* RESULT */}
+      {result && (
+        <div className="mt-6 text-center text-xl">
+          Выпало: {result}
+        </div>
+      )}
+    </div>
+  )
 }
