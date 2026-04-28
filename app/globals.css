@@ -1,9 +1,9 @@
-@keyframes rouletteMove {
-  0% {
-    transform: translateX(0);
-  }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  100% {
-    transform: translateX(-760px);
-  }
+body {
+  margin: 0;
+  background: #071018;
+  color: white;
 }
