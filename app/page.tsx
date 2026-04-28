@@ -1,5 +1,6 @@
 "use client";
 
+import Script from "next/script";
 import { useEffect, useState } from "react";
 
 declare global {
@@ -97,6 +98,12 @@ export default function Home() {
   }
 
   return (
+  <>
+    <Script
+      src="https://telegram.org/js/telegram-web-app.js"
+      strategy="beforeInteractive"
+    />
+
     <main className="min-h-screen bg-zinc-950 text-white p-4">
       <section className="mx-auto max-w-md space-y-4">
         <header>
@@ -144,5 +151,5 @@ export default function Home() {
         </div>
       </section>
     </main>
-  );
-}
+  </>
+);
