@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 const ITEMS = [
   { name: "Common", emoji: "🐟", chance: 55 },
@@ -8,20 +8,48 @@ const ITEMS = [
   { name: "Legendary", emoji: "👑", chance: 5 },
 ];
 
+// Дублируем 5 раз для длинной ленты (20 элементов)
+const ALL_ITEMS = [...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS];
+const ITEM_WIDTH = 112; // w-20 (80px) + mx-4 (16px+16px)
+
 export default function Home() {
   const [screen, setScreen] = useState<"main" | "cases" | "roulette">("main");
   const [rolling, setRolling] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [position, setPosition] = useState(0);
-  const animationRef = useRef<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState(320); // значение по умолчанию
+  const rouletteRef = useRef<HTMLDivElement>(null);
+  const lentaRef = useRef<HTMLDivElement>(null);
 
-  // Функция открытия бесплатного кейса (рулетка)
+  // Измеряем реальную ширину контейнера при появлении рулетки
+  useEffect(() => {
+    if (screen === "roulette" && rouletteRef.current) {
+      const width = rouletteRef.current.getBoundingClientRect().width;
+      setContainerWidth(width);
+    }
+  }, [screen]);
+
+  // Сброс при открытии рулетки
+  useEffect(() => {
+    if (screen === "roulette") {
+      setPosition(0);
+      setRolling(false);
+      setResult(null);
+    }
+  }, [screen]);
+
+  // Обработчик завершения анимации
+  const handleTransitionEnd = useCallback(() => {
+    setRolling(false);
+    // Результат уже записан в result
+  }, []);
+
   const startRoulette = () => {
     if (rolling) return;
     setRolling(true);
     setResult(null);
 
-    // Определяем приз заранее
+    // 1. Выбираем приз по вероятности
     const roll = Math.random() * 100;
     let sum = 0;
     let winItem = ITEMS[0];
@@ -33,45 +61,26 @@ export default function Home() {
       }
     }
 
-    // Анимация: быстрое движение справа налево 2.5 секунды с замедлением
-    let step = 0;
-    const totalSteps = 80; // примерно 2.5 сек при 30fps
-    const baseSpeed = 60; // пикселей за шаг в начале
-    const deceleration = 0.95;
+    // 2. Находим все индексы этого предмета в ALL_ITEMS
+    const possibleIndices: number[] = [];
+    ALL_ITEMS.forEach((item, idx) => {
+      if (item.name === winItem.name) possibleIndices.push(idx);
+    });
+    const winIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
 
-    const animate = () => {
-      step++;
-      if (step >= totalSteps) {
-        // Остановка
-        setPosition(0);
-        setRolling(false);
-        setResult(`${winItem.emoji} ${winItem.name}`);
-        return;
-      }
-      // Расчёт смещения: быстро в начале, замедляется к концу
-      const speed = baseSpeed * Math.pow(deceleration, step);
-      setPosition(prev => prev - speed); // движемся влево (отрицательное)
-      animationRef.current = requestAnimationFrame(animate);
-    };
+    // 3. Вычисляем конечную позицию: центр элемента под центром контейнера
+    const targetCenter = winIndex * ITEM_WIDTH + ITEM_WIDTH / 2;
+    const finalPos = containerWidth / 2 - targetCenter; // отрицательное или положительное
 
-    animate();
-  };
+    // 4. Запоминаем результат (пока скрыт)
+    setResult(`${winItem.emoji} ${winItem.name}`);
 
-  // Очистка анимации при размонтировании
-  useEffect(() => {
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, []);
-
-  // Сброс позиции при входе на экран рулетки
-  useEffect(() => {
-    if (screen === "roulette") {
-      setPosition(0);
-      setRolling(false);
-      setResult(null);
+    // 5. Запускаем анимацию: добавляем transition и задаём конечную позицию
+    if (lentaRef.current) {
+      lentaRef.current.style.transition = "transform 4.5s cubic-bezier(0.20, 0.85, 0.25, 1)";
     }
-  }, [screen]);
+    setPosition(finalPos);
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-white flex flex-col items-center justify-center px-4">
@@ -149,17 +158,24 @@ export default function Home() {
           <h2 className="text-2xl font-bold mb-6">Бесплатный кейс</h2>
 
           {/* Область рулетки */}
-          <div className="relative w-full h-24 bg-[#0d1321] rounded-xl overflow-hidden mb-6 border-2 border-gray-700">
+          <div
+            ref={rouletteRef}
+            className="relative w-full h-24 bg-[#0d1321] rounded-xl overflow-hidden mb-6 border-2 border-gray-700"
+          >
             {/* Центральная линия */}
             <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-yellow-400 z-10 transform -translate-x-1/2" />
 
             {/* Лента предметов */}
             <div
-              className="flex items-center h-full whitespace-nowrap transition-none"
-              style={{ transform: `translateX(${position}px)` }}
+              ref={lentaRef}
+              className="flex items-center h-full whitespace-nowrap"
+              style={{
+                transform: `translateX(${position}px)`,
+                transition: rolling ? undefined : "none", // transition управляется через JS, но мы задаём inline
+              }}
+              onTransitionEnd={handleTransitionEnd}
             >
-              {/* Дублируем несколько раз для непрерывности */}
-              {[...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS].map((item, i) => (
+              {ALL_ITEMS.map((item, i) => (
                 <div
                   key={i}
                   className="inline-flex flex-col items-center justify-center mx-4 w-20 h-full"
@@ -180,8 +196,8 @@ export default function Home() {
             {rolling ? "Крутим..." : "Бесплатно"}
           </button>
 
-          {/* Результат */}
-          {result && (
+          {/* Результат (появляется после остановки) */}
+          {result && !rolling && (
             <div className="mt-4 bg-green-900/40 border border-green-500 px-6 py-3 rounded-xl text-center animate-pulse">
               Выпал: {result}
             </div>
