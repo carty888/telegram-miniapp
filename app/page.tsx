@@ -8,9 +8,9 @@ const ITEMS = [
   { name: "Legendary", emoji: "👑", chance: 5 },
 ];
 
-// Длинная лента: 5 копий, чтобы хватило для любой позиции
+// Длинная лента: 5 копий (20 элементов), чтобы гарантированно покрыть любую позицию
 const ALL_ITEMS = [...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS];
-const ITEM_WIDTH = 112; // w-20 (80px) + mx-4 (16px+16px)
+const ITEM_WIDTH = 112; // w-20 (80px) + mx-4 (16+16)
 
 export default function Home() {
   const [screen, setScreen] = useState<"main" | "cases" | "roulette">("main");
@@ -20,28 +20,28 @@ export default function Home() {
   const [containerWidth, setContainerWidth] = useState(320);
   const rouletteRef = useRef<HTMLDivElement>(null);
   const lentaRef = useRef<HTMLDivElement>(null);
-  const finishTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
-  // Измеряем ширину контейнера при открытии рулетки
+  // Измеряем ширину контейнера при входе в рулетку
   useEffect(() => {
     if (screen === "roulette" && rouletteRef.current) {
       setContainerWidth(rouletteRef.current.getBoundingClientRect().width);
     }
   }, [screen]);
 
-  // Сброс при входе на экран рулетки
+  // Сброс всех состояний при переходе на экран рулетки
   useEffect(() => {
     if (screen === "roulette") {
-      setPosition(0);
+      setPosition(0);                // мгновенно показываем начало ленты
       setRolling(false);
       setResult(null);
     }
   }, [screen]);
 
-  // Очистка таймеров при размонтировании
+  // Очистка animationFrame при размонтировании компонента
   useEffect(() => {
     return () => {
-      if (finishTimeout.current) clearTimeout(finishTimeout.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, []);
 
@@ -50,58 +50,63 @@ export default function Home() {
     setRolling(true);
     setResult(null);
 
-    // 1. Выбрать приз по вероятности
+    // 1. Отменяем предыдущую анимацию (если была)
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    // 2. Выбор приза по заданным вероятностям
     const roll = Math.random() * 100;
-    let sum = 0;
+    let cumulative = 0;
     let winItem = ITEMS[0];
     for (const item of ITEMS) {
-      sum += item.chance;
-      if (roll <= sum) {
+      cumulative += item.chance;
+      if (roll <= cumulative) {
         winItem = item;
         break;
       }
     }
 
-    // 2. Выбрать случайный индекс среди всех таких предметов в ALL_ITEMS
-    const possibleIndices: number[] = [];
+    // 3. Случайный индекс среди всех экземпляров выигрышного предмета в ALL_ITEMS
+    const candidates: number[] = [];
     ALL_ITEMS.forEach((item, idx) => {
-      if (item.name === winItem.name) possibleIndices.push(idx);
+      if (item.name === winItem.name) candidates.push(idx);
     });
-    const winIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
+    const winIndex = candidates[Math.floor(Math.random() * candidates.length)];
 
-    // 3. Вычислить конечную позицию, чтобы центр предмета совпал с центром контейнера
+    // 4. Вычисляем финальную позицию, чтобы центр предмета совпал с центром контейнера
     const itemCenter = winIndex * ITEM_WIDTH + ITEM_WIDTH / 2;
     const finalPos = containerWidth / 2 - itemCenter; // может быть отрицательным
 
-    // 4. Сбросить transition и мгновенно установить стартовую позицию (лента справа)
-    if (lentaRef.current) {
-      lentaRef.current.style.transition = "none";
-    }
-    setPosition(containerWidth); // старт справа
+    // 5. Мгновенно ставим ленту в начальное положение (0) — элементы всегда видны
+    setPosition(0);
 
-    // Принудительно применить стили, затем включить анимацию
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (lentaRef.current) {
-          lentaRef.current.style.transition = "transform 5s cubic-bezier(0.25, 0.1, 0.25, 1)";
-        }
+    // 6. Запускаем анимацию через requestAnimationFrame с длительностью 7 секунд
+    const duration = 7000; // 7 секунд
+    const startTime = performance.now();
+    const startPos = 0;    // всегда стартуем от начала
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      if (elapsed >= duration) {
+        // Анимация завершена — точно финальная позиция
         setPosition(finalPos);
-      });
-    });
-
-    // 5. По окончании анимации показать результат (используем событие onTransitionEnd)
-    const handleTransitionEnd = () => {
-      setRolling(false);
-      setResult(`${winItem.emoji} ${winItem.name}`);
-      // Удалим слушатель, чтобы не срабатывал повторно
-      if (lentaRef.current) {
-        lentaRef.current.removeEventListener("transitionend", handleTransitionEnd);
+        setRolling(false);
+        setResult(`${winItem.emoji} ${winItem.name}`);
+        return;
       }
+
+      // Функция плавного замедления (ease‑out quart)
+      const t = elapsed / duration;
+      const eased = 1 - Math.pow(1 - t, 4);
+      const currentPos = startPos + (finalPos - startPos) * eased;
+      setPosition(currentPos);
+
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    if (lentaRef.current) {
-      lentaRef.current.addEventListener("transitionend", handleTransitionEnd, { once: true });
-    }
+    animationFrameRef.current = requestAnimationFrame(animate);
   };
 
   return (
@@ -116,7 +121,7 @@ export default function Home() {
         </button>
       )}
 
-      {/* Экран 2: Страница кейсов */}
+      {/* Экран 2: Список кейсов */}
       {screen === "cases" && (
         <div className="w-full max-w-md">
           <h2 className="text-2xl font-bold mb-6 text-center">Кейсы</h2>
