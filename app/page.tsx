@@ -34,7 +34,7 @@ export default function Home() {
         <div className="bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4">
           <div className="w-16 h-16 bg-[#0d1321] rounded-xl flex items-center justify-center overflow-hidden">
             <img
-              src="/case.gif"
+              src="/ezgif.com-gif-maker (1).gif"
               alt="case"
               className="w-full h-full object-cover"
             />
