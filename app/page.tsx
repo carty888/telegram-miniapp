@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const ITEMS = [
   { name: "Common", emoji: "🐟", chance: 55 },
@@ -8,28 +8,27 @@ const ITEMS = [
   { name: "Legendary", emoji: "👑", chance: 5 },
 ];
 
-// Дублируем 5 раз для длинной ленты (20 элементов)
+// Длинная лента: 5 копий, чтобы точно хватило для прокрутки
 const ALL_ITEMS = [...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS];
-const ITEM_WIDTH = 112; // w-20 (80px) + mx-4 (16px+16px)
+const ITEM_WIDTH = 112; // w-20 (80px) + mx-4 (16+16)
 
 export default function Home() {
   const [screen, setScreen] = useState<"main" | "cases" | "roulette">("main");
   const [rolling, setRolling] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [position, setPosition] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(320); // значение по умолчанию
+  const [containerWidth, setContainerWidth] = useState(320);
   const rouletteRef = useRef<HTMLDivElement>(null);
-  const lentaRef = useRef<HTMLDivElement>(null);
+  const animFrameRef = useRef<number | null>(null);
 
-  // Измеряем реальную ширину контейнера при появлении рулетки
+  // Измеряем ширину контейнера
   useEffect(() => {
     if (screen === "roulette" && rouletteRef.current) {
-      const width = rouletteRef.current.getBoundingClientRect().width;
-      setContainerWidth(width);
+      setContainerWidth(rouletteRef.current.getBoundingClientRect().width);
     }
   }, [screen]);
 
-  // Сброс при открытии рулетки
+  // Сброс при входе
   useEffect(() => {
     if (screen === "roulette") {
       setPosition(0);
@@ -38,10 +37,11 @@ export default function Home() {
     }
   }, [screen]);
 
-  // Обработчик завершения анимации
-  const handleTransitionEnd = useCallback(() => {
-    setRolling(false);
-    // Результат уже записан в result
+  // Очистка анимации
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
   }, []);
 
   const startRoulette = () => {
@@ -49,7 +49,7 @@ export default function Home() {
     setRolling(true);
     setResult(null);
 
-    // 1. Выбираем приз по вероятности
+    // 1. Выбор приза по шансам
     const roll = Math.random() * 100;
     let sum = 0;
     let winItem = ITEMS[0];
@@ -61,25 +61,40 @@ export default function Home() {
       }
     }
 
-    // 2. Находим все индексы этого предмета в ALL_ITEMS
+    // 2. Случайный индекс среди всех подходящих предметов в ALL_ITEMS
     const possibleIndices: number[] = [];
     ALL_ITEMS.forEach((item, idx) => {
       if (item.name === winItem.name) possibleIndices.push(idx);
     });
     const winIndex = possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
 
-    // 3. Вычисляем конечную позицию: центр элемента под центром контейнера
+    // 3. Идеальная позиция: центр выбранного элемента под центром контейнера
     const targetCenter = winIndex * ITEM_WIDTH + ITEM_WIDTH / 2;
-    const finalPos = containerWidth / 2 - targetCenter; // отрицательное или положительное
+    const finalPos = containerWidth / 2 - targetCenter;
 
-    // 4. Запоминаем результат (пока скрыт)
-    setResult(`${winItem.emoji} ${winItem.name}`);
+    // 4. Анимация через requestAnimationFrame
+    const duration = 4500; // 4.5 секунды
+    const startPos = position; // начинаем с текущей (0 при сбросе)
+    const startTime = performance.now();
 
-    // 5. Запускаем анимацию: добавляем transition и задаём конечную позицию
-    if (lentaRef.current) {
-      lentaRef.current.style.transition = "transform 4.5s cubic-bezier(0.20, 0.85, 0.25, 1)";
-    }
-    setPosition(finalPos);
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      if (elapsed >= duration) {
+        // Завершаем: ставим точно finalPos
+        setPosition(finalPos);
+        setRolling(false);
+        setResult(`${winItem.emoji} ${winItem.name}`);
+        return;
+      }
+      // Функция плавного замедления (ease-out)
+      const t = elapsed / duration;
+      const eased = 1 - Math.pow(1 - t, 4); // ease-out quart
+      const currentPos = startPos + (finalPos - startPos) * eased;
+      setPosition(currentPos);
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animFrameRef.current = requestAnimationFrame(animate);
   };
 
   return (
@@ -94,13 +109,12 @@ export default function Home() {
         </button>
       )}
 
-      {/* Экран 2: Страница кейсов */}
+      {/* Экран 2: Список кейсов */}
       {screen === "cases" && (
         <div className="w-full max-w-md">
           <h2 className="text-2xl font-bold mb-6 text-center">Кейсы</h2>
 
           <div className="space-y-4">
-            {/* Бесплатный кейс */}
             <button
               onClick={() => setScreen("roulette")}
               className="w-full bg-[#1a2236] hover:bg-[#243044] p-4 rounded-2xl flex items-center gap-4 active:scale-95 transition-transform"
@@ -118,11 +132,8 @@ export default function Home() {
               <span className="text-green-400 font-bold">БЕСПЛАТНО</span>
             </button>
 
-            {/* Кейс за 1 звезду */}
             <div className="w-full bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4 opacity-60">
-              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">
-                ⭐
-              </div>
+              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">⭐</div>
               <div className="flex-1 text-left">
                 <p className="font-semibold">Кейс за 1 звезду</p>
                 <p className="text-xs text-gray-400">Отличные предметы</p>
@@ -130,11 +141,8 @@ export default function Home() {
               <span className="text-yellow-400 font-bold">★ 1</span>
             </div>
 
-            {/* Кейс за 10 звезд */}
             <div className="w-full bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4 opacity-60">
-              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">
-                💎
-              </div>
+              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">💎</div>
               <div className="flex-1 text-left">
                 <p className="font-semibold">Кейс за 10 звезд</p>
                 <p className="text-xs text-gray-400">Лучшие предметы</p>
@@ -157,23 +165,15 @@ export default function Home() {
         <div className="w-full max-w-md flex flex-col items-center">
           <h2 className="text-2xl font-bold mb-6">Бесплатный кейс</h2>
 
-          {/* Область рулетки */}
           <div
             ref={rouletteRef}
             className="relative w-full h-24 bg-[#0d1321] rounded-xl overflow-hidden mb-6 border-2 border-gray-700"
           >
-            {/* Центральная линия */}
             <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-yellow-400 z-10 transform -translate-x-1/2" />
 
-            {/* Лента предметов */}
             <div
-              ref={lentaRef}
               className="flex items-center h-full whitespace-nowrap"
-              style={{
-                transform: `translateX(${position}px)`,
-                transition: rolling ? undefined : "none", // transition управляется через JS, но мы задаём inline
-              }}
-              onTransitionEnd={handleTransitionEnd}
+              style={{ transform: `translateX(${position}px)` }}
             >
               {ALL_ITEMS.map((item, i) => (
                 <div
@@ -187,7 +187,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Кнопка открытия */}
           <button
             onClick={startRoulette}
             disabled={rolling}
@@ -196,7 +195,6 @@ export default function Home() {
             {rolling ? "Крутим..." : "Бесплатно"}
           </button>
 
-          {/* Результат (появляется после остановки) */}
           {result && !rolling && (
             <div className="mt-4 bg-green-900/40 border border-green-500 px-6 py-3 rounded-xl text-center animate-pulse">
               Выпал: {result}
