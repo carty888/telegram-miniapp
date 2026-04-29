@@ -8,9 +8,9 @@ const ITEMS = [
   { name: "Legendary", emoji: "👑", chance: 5 },
 ];
 
-// Длинная лента из 10 копий (40 предметов) – гарантированно покрывает любой сдвиг
-const ALL_ITEMS = Array(10).fill(ITEMS).flat();
-const ITEM_WIDTH = 112; // ширина одного предмета (80px + margin 16px с каждой стороны)
+// Очень длинная лента: 20 копий (80 предметов) – хватит для любого сдвига
+const ALL_ITEMS = Array(20).fill(ITEMS).flat();
+const ITEM_WIDTH = 112; // w-20 (80px) + mx-4 (16+16)
 
 export default function Home() {
   const [screen, setScreen] = useState<"main" | "cases" | "roulette">("main");
@@ -67,7 +67,7 @@ export default function Home() {
       }
     }
 
-    // 2. Индекс среди ВСЕХ элементов ленты (выбираем случайный экземпляр выигрышного предмета)
+    // 2. Индекс среди всех элементов ленты (выбираем случайный экземпляр выигрышного предмета)
     const candidates: number[] = [];
     ALL_ITEMS.forEach((item, idx) => {
       if (item.name === winItem.name) candidates.push(idx);
@@ -96,7 +96,7 @@ export default function Home() {
         return;
       }
       const t = elapsed / duration;
-      const eased = 1 - Math.pow(1 - t, 4); // easing: быстрый старт, плавное замедление
+      const eased = 1 - Math.pow(1 - t, 4); // быстрый старт, плавное замедление
       const currentPos = startPos + (finalPos - startPos) * eased;
       setPosition(currentPos);
       animFrameRef.current = requestAnimationFrame(animate);
