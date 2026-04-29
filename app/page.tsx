@@ -8,9 +8,9 @@ const ITEMS = [
   { name: "Legendary", emoji: "👑", chance: 5 },
 ];
 
-// Длинная лента: 5 копий (20 элементов), чтобы гарантированно покрыть любую позицию
-const ALL_ITEMS = [...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS];
-const ITEM_WIDTH = 112; // w-20 (80px) + mx-4 (16+16)
+// Длинная лента из 10 копий (40 предметов) – гарантированно покрывает любой сдвиг
+const ALL_ITEMS = Array(10).fill(ITEMS).flat();
+const ITEM_WIDTH = 112; // ширина одного предмета (80px + margin 16px с каждой стороны)
 
 export default function Home() {
   const [screen, setScreen] = useState<"main" | "cases" | "roulette">("main");
@@ -19,44 +19,43 @@ export default function Home() {
   const [position, setPosition] = useState(0);
   const [containerWidth, setContainerWidth] = useState(320);
   const rouletteRef = useRef<HTMLDivElement>(null);
-  const lentaRef = useRef<HTMLDivElement>(null);
-  const animationFrameRef = useRef<number | null>(null);
+  const animFrameRef = useRef<number | null>(null);
 
-  // Измеряем ширину контейнера при входе в рулетку
+  // Измеряем ширину контейнера при открытии рулетки
   useEffect(() => {
     if (screen === "roulette" && rouletteRef.current) {
       setContainerWidth(rouletteRef.current.getBoundingClientRect().width);
     }
   }, [screen]);
 
-  // Сброс всех состояний при переходе на экран рулетки
+  // При переходе на рулетку – всегда показываем начало ленты
   useEffect(() => {
     if (screen === "roulette") {
-      setPosition(0);                // мгновенно показываем начало ленты
+      setPosition(0);
       setRolling(false);
       setResult(null);
     }
   }, [screen]);
 
-  // Очистка animationFrame при размонтировании компонента
+  // Очистка анимации при размонтировании
   useEffect(() => {
     return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, []);
 
   const startRoulette = () => {
     if (rolling) return;
+    // Сбрасываем предыдущую анимацию
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+
     setRolling(true);
     setResult(null);
 
-    // 1. Отменяем предыдущую анимацию (если была)
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    // 2. Выбор приза по заданным вероятностям
+    // 1. Выбор приза по вероятности
     const roll = Math.random() * 100;
     let cumulative = 0;
     let winItem = ITEMS[0];
@@ -68,50 +67,47 @@ export default function Home() {
       }
     }
 
-    // 3. Случайный индекс среди всех экземпляров выигрышного предмета в ALL_ITEMS
+    // 2. Индекс среди ВСЕХ элементов ленты (выбираем случайный экземпляр выигрышного предмета)
     const candidates: number[] = [];
     ALL_ITEMS.forEach((item, idx) => {
       if (item.name === winItem.name) candidates.push(idx);
     });
     const winIndex = candidates[Math.floor(Math.random() * candidates.length)];
 
-    // 4. Вычисляем финальную позицию, чтобы центр предмета совпал с центром контейнера
+    // 3. Вычисляем, где центр этого предмета относительно начала ленты
     const itemCenter = winIndex * ITEM_WIDTH + ITEM_WIDTH / 2;
-    const finalPos = containerWidth / 2 - itemCenter; // может быть отрицательным
+    // Желаемая позиция: чтобы центр предмета совпал с центром контейнера
+    const finalPos = containerWidth / 2 - itemCenter;
 
-    // 5. Мгновенно ставим ленту в начальное положение (0) — элементы всегда видны
+    // 4. Сбрасываем положение на начало (0) — так предметы точно видны
     setPosition(0);
 
-    // 6. Запускаем анимацию через requestAnimationFrame с длительностью 7 секунд
-    const duration = 7000; // 7 секунд
+    // 5. Запуск анимации (7 секунд, ease-out)
+    const duration = 7000;
     const startTime = performance.now();
-    const startPos = 0;    // всегда стартуем от начала
+    const startPos = 0;
 
     const animate = (now: number) => {
       const elapsed = now - startTime;
       if (elapsed >= duration) {
-        // Анимация завершена — точно финальная позиция
         setPosition(finalPos);
         setRolling(false);
         setResult(`${winItem.emoji} ${winItem.name}`);
         return;
       }
-
-      // Функция плавного замедления (ease‑out quart)
       const t = elapsed / duration;
-      const eased = 1 - Math.pow(1 - t, 4);
+      const eased = 1 - Math.pow(1 - t, 4); // easing: быстрый старт, плавное замедление
       const currentPos = startPos + (finalPos - startPos) * eased;
       setPosition(currentPos);
-
-      animationFrameRef.current = requestAnimationFrame(animate);
+      animFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animationFrameRef.current = requestAnimationFrame(animate);
+    animFrameRef.current = requestAnimationFrame(animate);
   };
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-white flex flex-col items-center justify-center px-4">
-      {/* Экран 1: Главный */}
+      {/* Главный экран */}
       {screen === "main" && (
         <button
           onClick={() => setScreen("cases")}
@@ -121,13 +117,12 @@ export default function Home() {
         </button>
       )}
 
-      {/* Экран 2: Список кейсов */}
+      {/* Список кейсов */}
       {screen === "cases" && (
         <div className="w-full max-w-md">
           <h2 className="text-2xl font-bold mb-6 text-center">Кейсы</h2>
 
           <div className="space-y-4">
-            {/* Бесплатный кейс */}
             <button
               onClick={() => setScreen("roulette")}
               className="w-full bg-[#1a2236] hover:bg-[#243044] p-4 rounded-2xl flex items-center gap-4 active:scale-95 transition-transform"
@@ -145,11 +140,8 @@ export default function Home() {
               <span className="text-green-400 font-bold">БЕСПЛАТНО</span>
             </button>
 
-            {/* Кейс за 1 звезду */}
             <div className="w-full bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4 opacity-60">
-              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">
-                ⭐
-              </div>
+              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">⭐</div>
               <div className="flex-1 text-left">
                 <p className="font-semibold">Кейс за 1 звезду</p>
                 <p className="text-xs text-gray-400">Отличные предметы</p>
@@ -157,11 +149,8 @@ export default function Home() {
               <span className="text-yellow-400 font-bold">★ 1</span>
             </div>
 
-            {/* Кейс за 10 звезд */}
             <div className="w-full bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4 opacity-60">
-              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">
-                💎
-              </div>
+              <div className="w-16 h-16 bg-[#0d1321] rounded-lg flex items-center justify-center text-3xl">💎</div>
               <div className="flex-1 text-left">
                 <p className="font-semibold">Кейс за 10 звезд</p>
                 <p className="text-xs text-gray-400">Лучшие предметы</p>
@@ -179,24 +168,20 @@ export default function Home() {
         </div>
       )}
 
-      {/* Экран 3: Рулетка */}
+      {/* Рулетка */}
       {screen === "roulette" && (
         <div className="w-full max-w-md flex flex-col items-center">
           <h2 className="text-2xl font-bold mb-6">Бесплатный кейс</h2>
 
-          {/* Область рулетки */}
           <div
             ref={rouletteRef}
             className="relative w-full h-24 bg-[#0d1321] rounded-xl overflow-hidden mb-6 border-2 border-gray-700"
           >
-            {/* Центральная жёлтая линия */}
             <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-yellow-400 z-10 transform -translate-x-1/2" />
 
-            {/* Лента предметов */}
             <div
-              ref={lentaRef}
               className="flex items-center h-full whitespace-nowrap"
-              style={{ transform: `translateX(${position}px)` }}
+              style={{ transform: `translateX(${position}px)`, willChange: "transform" }}
             >
               {ALL_ITEMS.map((item, i) => (
                 <div
@@ -210,7 +195,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Кнопка открытия */}
           <button
             onClick={startRoulette}
             disabled={rolling}
@@ -219,7 +203,6 @@ export default function Home() {
             {rolling ? "Крутим..." : "Бесплатно"}
           </button>
 
-          {/* Результат (появляется после остановки) */}
           {result && !rolling && (
             <div className="mt-4 bg-green-900/40 border border-green-500 px-6 py-3 rounded-xl text-center animate-pulse">
               Выпал: {result}
