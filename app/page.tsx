@@ -1,94 +1,97 @@
-'use client'
+"use client";
+import { useState } from "react";
 
-import { useState } from 'react'
+export default function Home() {
+  const [result, setResult] = useState<string | null>(null);
 
-const ITEMS = ['🎁', '💎', '🔥', '⭐', '🎉', '💰']
+  const openFreeCase = () => {
+    setResult("🎉 Выпал: Common предмет");
+  };
 
-export default function Page() {
-  const [result, setResult] = useState<string | null>(null)
-
-  const openCase = () => {
-    const random = ITEMS[Math.floor(Math.random() * ITEMS.length)]
-    setResult(random)
-  }
+  const openStarCase = (stars: number) => {
+    alert(`Оплата ${stars} ⭐ пока не подключена`);
+  };
 
   return (
-    <div className="min-h-screen bg-[#060f1a] text-white px-4 py-6">
-
-      {/* HEADER */}
+    <div className="min-h-screen bg-[#0a0f1a] text-white px-4 py-6">
+      {/* Заголовок */}
       <div className="mb-6">
         <div className="text-sm text-purple-400 mb-1">Telegram Mini App</div>
-        <h1 className="text-4xl font-bold flex items-center gap-2">
-          Кейсы 📦
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          КОПИТОН <span className="text-yellow-400">Кейсы</span>
         </h1>
-
-        <div className="mt-4 bg-[#0d1b2a] p-4 rounded-xl text-gray-300">
-          Открывай кейсы и получай крутые предметы! <br />
-          Чем дороже кейс — тем круче дроп ✨
-        </div>
       </div>
 
-      {/* FREE CASE */}
-      <div
-        onClick={openCase}
-        className="mb-4 cursor-pointer rounded-2xl p-4 bg-gradient-to-r from-green-700 to-green-500 flex items-center justify-between"
-      >
-        <div className="flex items-center gap-4">
-          
-          {/* 🔥 ТВОЯ ГИФКА */}
-          <img
-            src="/case.gif"
-            alt="case"
-            className="w-20 h-20 rounded-xl object-cover"
-          />
+      {/* Описание */}
+      <div className="bg-[#111827] p-4 rounded-xl text-gray-300 text-sm mb-8">
+        Открывай кейсы и получай крутые предметы! <br />
+        Чем дороже кейс – тем круче дроп 🎉
+      </div>
 
-          <div>
-            <div className="text-xl font-semibold">Бесплатный кейс</div>
-            <div className="text-sm opacity-80">Открывается бесплатно</div>
+      {/* Карточки кейсов */}
+      <div className="space-y-4">
+        {/* Бесплатный кейс */}
+        <div className="bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4">
+          <div className="w-16 h-16 bg-[#0d1321] rounded-xl flex items-center justify-center overflow-hidden">
+            <img
+              src="/case.gif"
+              alt="case"
+              className="w-full h-full object-cover"
+            />
           </div>
+          <div className="flex-1">
+            <h3 className="font-semibold">Бесплатный кейс</h3>
+            <p className="text-xs text-gray-400">Открывается бесплатно</p>
+          </div>
+          <button
+            onClick={openFreeCase}
+            className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            БЕСПЛАТНО
+          </button>
         </div>
 
-        <div className="text-green-200 font-bold">БЕСПЛАТНО</div>
-      </div>
-
-      {/* CASE 1 */}
-      <div className="mb-4 rounded-2xl p-4 bg-gradient-to-r from-yellow-700 to-yellow-500 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 bg-black/30 rounded-xl flex items-center justify-center text-3xl">
+        {/* Кейс за 1 звезду */}
+        <div className="bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4">
+          <div className="w-16 h-16 bg-[#0d1321] rounded-xl flex items-center justify-center text-3xl">
             ⭐
           </div>
-
-          <div>
-            <div className="text-xl font-semibold">Кейс за 1 звезду</div>
-            <div className="text-sm opacity-80">Отличные предметы</div>
+          <div className="flex-1">
+            <h3 className="font-semibold">Кейс за 1 звезду</h3>
+            <p className="text-xs text-gray-400">Отличные предметы</p>
           </div>
+          <button
+            onClick={() => openStarCase(1)}
+            className="bg-yellow-500 hover:bg-yellow-400 px-4 py-2 rounded-lg text-sm font-medium text-black"
+          >
+            ★ 1
+          </button>
         </div>
 
-        <div className="text-yellow-200 font-bold">⭐ 1</div>
-      </div>
-
-      {/* CASE 10 */}
-      <div className="mb-4 rounded-2xl p-4 bg-gradient-to-r from-purple-700 to-purple-500 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 bg-black/30 rounded-xl flex items-center justify-center text-3xl">
+        {/* Кейс за 10 звезд */}
+        <div className="bg-[#1a2236] p-4 rounded-2xl flex items-center gap-4">
+          <div className="w-16 h-16 bg-[#0d1321] rounded-xl flex items-center justify-center text-3xl">
             💎
           </div>
-
-          <div>
-            <div className="text-xl font-semibold">Кейс за 10 звезд</div>
-            <div className="text-sm opacity-80">Лучшие предметы</div>
+          <div className="flex-1">
+            <h3 className="font-semibold">Кейс за 10 звезд</h3>
+            <p className="text-xs text-gray-400">Лучшие предметы</p>
           </div>
+          <button
+            onClick={() => openStarCase(10)}
+            className="bg-yellow-500 hover:bg-yellow-400 px-4 py-2 rounded-lg text-sm font-medium text-black"
+          >
+            ★ 10
+          </button>
         </div>
-
-        <div className="text-purple-200 font-bold">⭐ 10</div>
       </div>
 
-      {/* RESULT */}
+      {/* Результат открытия бесплатного кейса */}
       {result && (
-        <div className="mt-6 text-center text-xl">
-          Выпало: {result}
+        <div className="mt-6 bg-green-900/40 border border-green-500 p-4 rounded-xl text-center">
+          {result}
         </div>
       )}
     </div>
-  )
+  );
 }
