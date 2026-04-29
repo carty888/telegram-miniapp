@@ -34,9 +34,8 @@ export default function Home() {
     }
 
     // Анимация: быстрое движение справа налево 2.5 секунды с замедлением
-    const startPos = 0;
-    const totalSteps = 80; // примерно 2.5 сек при 30fps
     let step = 0;
+    const totalSteps = 80; // примерно 2.5 сек при 30fps
     const baseSpeed = 60; // пикселей за шаг в начале
     const deceleration = 0.95;
 
@@ -50,7 +49,6 @@ export default function Home() {
         return;
       }
       // Расчёт смещения: быстро в начале, замедляется к концу
-      const progress = step / totalSteps;
       const speed = baseSpeed * Math.pow(deceleration, step);
       setPosition(prev => prev - speed); // движемся влево (отрицательное)
       animationRef.current = requestAnimationFrame(animate);
@@ -158,10 +156,7 @@ export default function Home() {
             {/* Лента предметов */}
             <div
               className="flex items-center h-full whitespace-nowrap transition-none"
-              style={{
-                transform: `translateX(${position}px)`,
-                // фон для ленты, если нужно
-              }}
+              style={{ transform: `translateX(${position}px)` }}
             >
               {/* Дублируем несколько раз для непрерывности */}
               {[...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS].map((item, i) => (
